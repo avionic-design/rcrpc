@@ -1,5 +1,5 @@
 AC_PREREQ(2.66)
-AC_INIT([rcrpc], [1.0.0],
+AC_INIT([rcrpc], [1.0.1],
 	[https://github.com/avionic-design/rcrpc/issues],
 	[rcrpc], [https://github.com/avionic-design/rcrpc])
 AC_CONFIG_MACRO_DIR([m4])
