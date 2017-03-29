@@ -71,6 +71,8 @@ AC_SUBST(VISIBILITY_CFLAGS)
 
 AX_APPEND_COMPILE_FLAGS([-Wall -D_FORTIFY_SOURCE=2])
 AX_APPEND_COMPILE_FLAGS([-fstack-protector-strong -Werror=format-security])
+# Clang doesn't like the TODOs regarding RPC vs remote-control enums
+AX_APPEND_COMPILE_FLAGS([-Wno-enum-conversion])
 
 AC_ARG_ENABLE([werror],
 	[AS_HELP_STRING([--disable-werror],
