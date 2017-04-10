@@ -128,8 +128,10 @@ int32_t RPC_IMPL(net_config)(void *priv, uint32_t port, uint32_t timeout, uint32
 	g_debug("> %s(priv=%p, port=%u, timeout=%u, repeat=%u, host=%s)",
 			__func__, priv, port, timeout, repeat, host);
 
-	if (!net | !net_data)
+	if (!net || !net_data) {
+		g_warning("net: not initialized yet");
 		return -EINVAL;
+	}
 
 	if (net_data->primary)
 		net_udp_destroy_channel(net_data->net, net_data->primary);
@@ -157,6 +159,11 @@ int32_t RPC_IMPL(net_read)(void *priv, uint32_t mode, struct rpc_buffer *buffer)
 
 	g_debug("> %s(priv=%p, mode=%#x, buffer=%p)", __func__, priv, mode,
 			buffer);
+
+	if (!net || !net_data) {
+		g_warning("net: not initialized yet");
+		return -EINVAL;
+	}
 
 	async_chan = net_udp_get_channel_by_ref(net, net_data->primary);
 	sync_chan = net_udp_get_channel_by_ref(net, net_data->secondary);
@@ -217,6 +224,11 @@ int32_t RPC_IMPL(net_write)(void *priv, uint32_t mode, struct rpc_buffer *buffer
 
 	g_debug("> %s(priv=%p, mode=%#x, buffer=%p)", __func__, priv, mode,
 			buffer);
+
+	if (!net || !net_data) {
+		g_warning("net: not initialized yet");
+		return -EINVAL;
+	}
 
 	async_chan = net_udp_get_channel_by_ref(net, net_data->primary);
 	sync_chan = net_udp_get_channel_by_ref(net, net_data->secondary);
