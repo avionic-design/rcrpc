@@ -25,6 +25,7 @@
 void rpc_irq_init(void *priv);
 void rpc_irq_cleanup(void);
 
+void rpc_net_init(void *priv);
 void rpc_net_cleanup(void);
 
 /**

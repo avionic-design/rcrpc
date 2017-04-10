@@ -311,6 +311,7 @@ int rcrpc_create(void *rcpriv, GKeyFile *config)
 	g_source_unref(source);
 
 	rpc_irq_init(rpc_priv);
+	rpc_net_init(rpc_priv);
 
 	return 0;
 }

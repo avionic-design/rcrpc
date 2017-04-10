@@ -92,6 +92,24 @@ static ssize_t gethwaddr(char *hwaddr, size_t len)
 	return err;
 }
 
+void rpc_net_init(void *priv)
+{
+	struct net_udp *net = remote_control_get_net_udp(RCPTR(priv));
+	int ret;
+
+	if (net_data)
+		rpc_net_cleanup();
+
+	net_data = g_new0(struct net_data, 1);
+	net_data->net = net;
+
+	ret = net_udp_create_channel(net, 49999, "255.255.255.255", 50000);
+	if (ret >= 0) {
+		net_data->secondary = ret;
+		ret = 0;
+	}
+}
+
 void rpc_net_cleanup(void)
 {
 	if (net_data) {
@@ -110,23 +128,23 @@ int32_t RPC_IMPL(net_config)(void *priv, uint32_t port, uint32_t timeout, uint32
 	g_debug("> %s(priv=%p, port=%u, timeout=%u, repeat=%u, host=%s)",
 			__func__, priv, port, timeout, repeat, host);
 
-	rpc_net_cleanup();
-	net_data = g_new0(struct net_data, 1);
-	net_data->net = net;
-	net_data->sync_timeout_msec = timeout & 0xFFFF;
+	if (!net | !net_data)
+		return -EINVAL;
+
+	if (net_data->primary)
+		net_udp_destroy_channel(net_data->net, net_data->primary);
+
+	net_data->primary = 0;
 	ret = net_udp_create_channel(net, 9999, host, port);
-	if (ret >= 0) {
+	if (ret >= 0)
 		net_data->primary = ret;
-		ret = net_udp_create_channel(net, 49999, "255.255.255.255",
-			50000);
-		if (ret >= 0) {
-			net_data->secondary = ret;
-			ret = 0;
-		}
-	}
+	else
+		g_warning("Failed to create channel: %d", ret);
+
+	net_data->sync_timeout_msec = timeout & 0xFFFF;
 
 	g_debug("< %s() = %d", __func__, ret);
-	return ret;
+	return ret > 0 ? 0 : ret;
 }
 
 int32_t RPC_IMPL(net_read)(void *priv, uint32_t mode, struct rpc_buffer *buffer)
