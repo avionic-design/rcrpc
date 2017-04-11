@@ -38,8 +38,8 @@ enum net_write_mode {
 
 struct net_data {
 	struct net_udp *net;
-	int primary;
-	int secondary;
+	int async_p2p;
+	int sync_broadcast;
 
 	uint16_t sync_timeout_msec;
 };
@@ -105,7 +105,7 @@ void rpc_net_init(void *priv)
 
 	ret = net_udp_create_channel(net, 49999, "255.255.255.255", 50000);
 	if (ret >= 0) {
-		net_data->secondary = ret;
+		net_data->sync_broadcast = ret;
 		ret = 0;
 	}
 }
@@ -113,13 +113,14 @@ void rpc_net_init(void *priv)
 void rpc_net_cleanup(void)
 {
 	if (net_data) {
-		net_udp_destroy_channel(net_data->net, net_data->primary);
-		net_udp_destroy_channel(net_data->net, net_data->secondary);
+		net_udp_destroy_channel(net_data->net, net_data->async_p2p);
+		net_udp_destroy_channel(net_data->net, net_data->sync_broadcast);
 		g_free(net_data);
 		net_data = NULL;
 	}
 }
 
+/* Really only configures the asynchronous channel, not both. */
 int32_t RPC_IMPL(net_config)(void *priv, uint32_t port, uint32_t timeout, uint32_t repeat, const char *host)
 {
 	struct net_udp *net = remote_control_get_net_udp(RCPTR(priv));
@@ -133,13 +134,13 @@ int32_t RPC_IMPL(net_config)(void *priv, uint32_t port, uint32_t timeout, uint32
 		return -EINVAL;
 	}
 
-	if (net_data->primary)
-		net_udp_destroy_channel(net_data->net, net_data->primary);
+	if (net_data->async_p2p)
+		net_udp_destroy_channel(net_data->net, net_data->async_p2p);
 
-	net_data->primary = 0;
+	net_data->async_p2p = 0;
 	ret = net_udp_create_channel(net, 9999, host, port);
 	if (ret >= 0)
-		net_data->primary = ret;
+		net_data->async_p2p = ret;
 	else
 		g_warning("Failed to create channel: %d", ret);
 
@@ -165,8 +166,8 @@ int32_t RPC_IMPL(net_read)(void *priv, uint32_t mode, struct rpc_buffer *buffer)
 		return -EINVAL;
 	}
 
-	async_chan = net_udp_get_channel_by_ref(net, net_data->primary);
-	sync_chan = net_udp_get_channel_by_ref(net, net_data->secondary);
+	async_chan = net_udp_get_channel_by_ref(net, net_data->async_p2p);
+	sync_chan = net_udp_get_channel_by_ref(net, net_data->sync_broadcast);
 
 	switch (mode) {
 	case NET_READ_MODE_UDP_NONBLOCK:
@@ -230,8 +231,8 @@ int32_t RPC_IMPL(net_write)(void *priv, uint32_t mode, struct rpc_buffer *buffer
 		return -EINVAL;
 	}
 
-	async_chan = net_udp_get_channel_by_ref(net, net_data->primary);
-	sync_chan = net_udp_get_channel_by_ref(net, net_data->secondary);
+	async_chan = net_udp_get_channel_by_ref(net, net_data->async_p2p);
+	sync_chan = net_udp_get_channel_by_ref(net, net_data->sync_broadcast);
 
 	switch (mode) {
 	case NET_WRITE_MODE_UDP_NONBLOCK:
@@ -255,9 +256,9 @@ int32_t RPC_IMPL(net_write)(void *priv, uint32_t mode, struct rpc_buffer *buffer
 		timeout.tv_usec = (net_data->sync_timeout_msec % 1000) * 1000;
 
 		FD_ZERO(&rfds);
-		FD_SET(net_data->secondary, &rfds);
+		FD_SET(net_data->sync_broadcast, &rfds);
 
-		ret = select(net_data->secondary + 1, &rfds, NULL, NULL,
+		ret = select(net_data->sync_broadcast + 1, &rfds, NULL, NULL,
 			&timeout);
 		if (ret < 0)
 			ret = -errno;
